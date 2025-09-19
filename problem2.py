@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 from abess import LinearRegression as ALR
 
 train_df = pd.read_csv('mls_train.csv')
@@ -80,6 +80,9 @@ print("Best by AIC:\n", best_AIC[["k","features","train_mse","test_mse","AIC"]])
 print("Best by BIC:\n", best_BIC[["k","features","train_mse","test_mse","BIC"]])
 print("Best by Mallows Cp:\n", best_Cp[["k","features","train_mse","test_mse","Cp"]])
 print("Best by adjusted R^2:\n", best_R2a[["k","features","train_mse","test_mse","R2_adj"]])
+
+# c)
+
 
 
 
