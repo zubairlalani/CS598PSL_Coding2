@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression, RidgeCV, Lasso, LassoCV
+from sklearn.model_selection import KFold
 from abess import LinearRegression as ALR
 
 train_df = pd.read_csv('mls_train.csv')
@@ -13,16 +14,16 @@ def mse(y, yhat):
     d = np.asarray(yhat) - np.asarray(y)
     return float(np.mean(d * d))
 
-def fit_lr(Xtr, ytr, Xte, yte):
-    n = Xtr.shape[0]
-    p = Xtr.shape[1] + 1 
+def fit_lr(train_x, train_y, test_x, test_y):
+    n = train_x.shape[0]
+    p = train_x.shape[1] + 1 
 
-    sklr = LinearRegression().fit(Xtr, ytr)
-    yhat_tr = sklr.predict(Xtr)
-    yhat_te = sklr.predict(Xte)
+    sklr = LinearRegression().fit(train_x, train_y)
+    pred_train_y = sklr.predict(train_x)
+    pred_test_y = sklr.predict(test_x)
 
-    RSS = float(np.sum((ytr - yhat_tr) ** 2))
-    TSS = float(np.sum((ytr - np.mean(ytr)) ** 2))
+    RSS = float(np.sum((train_y - pred_train_y) ** 2))
+    TSS = float(np.sum((train_y - np.mean(train_y)) ** 2))
 
     AIC = n * np.log(RSS / n) + 2 * p
     BIC = n * np.log(RSS / n) + np.log(n) * p
@@ -32,8 +33,8 @@ def fit_lr(Xtr, ytr, Xte, yte):
         "ols": sklr,
         "RSS": RSS,
         "p": p,
-        "train_mse": mse(ytr, yhat_tr),
-        "test_mse": mse(yte, yhat_te),
+        "train_mse": mse(train_y, pred_train_y),
+        "test_mse": mse(test_y, pred_test_y),
         "AIC": AIC,
         "BIC": BIC,
         "R2_adj": R2_adj,
@@ -51,9 +52,8 @@ for k in range(1, 9):
 
 lr_dict = fit_lr(train_x[best_subsets[max(best_subsets)]], train_y, test_x[best_subsets[max(best_subsets)]], test_y)
 sigma2_hat = lr_dict["RSS"] / (train_x.shape[0] - lr_dict["p"]) 
-
-# b)
 rows = []
+
 for k, feats in best_subsets.items():
     lr_dict = fit_lr(train_x[feats], train_y, test_x[feats], test_y)
     Cp = lr_dict["RSS"] / sigma2_hat - (train_x.shape[0] - 2 * lr_dict["p"]) 
@@ -69,8 +69,9 @@ for k, feats in best_subsets.items():
     })
 
 results = pd.DataFrame(rows).sort_values("k")
-print(results[["k","train_mse","test_mse","AIC","BIC","Cp","R2_adj","features"]])
+print(results[["k","train_mse","test_mse", "features"]])
 
+# b)
 best_AIC = results.loc[results["AIC"].idxmin()]
 best_BIC = results.loc[results["BIC"].idxmin()]
 best_Cp  = results.loc[results["Cp"].idxmin()]
@@ -82,7 +83,36 @@ print("Best by Mallows Cp:\n", best_Cp[["k","features","train_mse","test_mse","C
 print("Best by adjusted R^2:\n", best_R2a[["k","features","train_mse","test_mse","R2_adj"]])
 
 # c)
+print("Ridge: ")
+cv = KFold(n_splits = 5, shuffle = True, random_state=42) # 5-fold cross validation
+ridge = RidgeCV(cv = cv, scoring='neg_mean_squared_error')
+ridge.fit(train_x, train_y)
 
+print("Optimal lambda (alpha):", ridge.alpha_)
+pred_train_y = ridge.predict(train_x)
+pred_test_y = ridge.predict(test_x)
+print("Train MSE:", mse(train_y, pred_train_y))
+print("Test  MSE:", mse(test_y, pred_test_y))
+
+# d)
+print("Lasso: ")
+lasso_cv = LassoCV(cv=cv)
+lasso_cv.fit(train_x, train_y)
+lasso = Lasso(alpha = lasso_cv.alpha_)
+lasso.fit(train_x, train_y)
+coef_series = pd.Series(lasso.coef_, index=train_x.columns)
+zero_feature_indices = np.isclose(coef_series.values, 0.0)
+zero_features = coef_series.index[zero_feature_indices].tolist()
+print(zero_features)
+train_pred_y = lasso.predict(train_x)
+test_pred_y = lasso.predict(test_x)
+print("Train MSE:", mse(train_y, train_pred_y))
+print("Test MSE:", mse(test_y, test_pred_y))
+
+# e)
+'''
+Based on the results, we can see that the mean squared error for both train and test is lowest when using ridge regression.
+'''
 
 
 
