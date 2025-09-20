@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression, RidgeCV, Lasso, LassoCV
 from sklearn.model_selection import KFold
+from sklearn.preprocessing import StandardScaler
 from abess import LinearRegression as ALR
 
 train_df = pd.read_csv('mls_train.csv')
@@ -30,13 +31,12 @@ def fit_lr(train_x, train_y, test_x, test_y):
     R2_adj = 1.0 - (RSS / (n - p)) / (TSS / (n - 1))
 
     return {
-        "ols": sklr,
-        "RSS": RSS,
-        "p": p,
         "train_mse": mse(train_y, pred_train_y),
         "test_mse": mse(test_y, pred_test_y),
         "AIC": AIC,
         "BIC": BIC,
+        "RSS": RSS,
+        "p": p,
         "R2_adj": R2_adj,
     }
 
@@ -84,28 +84,34 @@ print("Best by adjusted R^2:\n", best_R2a[["k","features","train_mse","test_mse"
 
 # c)
 print("Ridge: ")
+scaler = StandardScaler().fit(train_x)
+scaled_tr_x = scaler.transform(train_x)
+scaled_test_x = scaler.transform(test_x)
 cv = KFold(n_splits = 5, shuffle = True, random_state=42) # 5-fold cross validation
 ridge = RidgeCV(cv = cv, scoring='neg_mean_squared_error')
-ridge.fit(train_x, train_y)
+ridge.fit(scaled_tr_x, train_y)
 
 print("Optimal lambda (alpha):", ridge.alpha_)
-pred_train_y = ridge.predict(train_x)
-pred_test_y = ridge.predict(test_x)
+pred_train_y = ridge.predict(scaled_tr_x)
+pred_test_y = ridge.predict(scaled_test_x)
 print("Train MSE:", mse(train_y, pred_train_y))
 print("Test  MSE:", mse(test_y, pred_test_y))
 
 # d)
 print("Lasso: ")
+scaler = StandardScaler().fit(train_x)
+scaled_tr_x = scaler.transform(train_x)
+scaled_test_x = scaler.transform(test_x)
 lasso_cv = LassoCV(cv=cv)
-lasso_cv.fit(train_x, train_y)
+lasso_cv.fit(scaled_tr_x, train_y)
 lasso = Lasso(alpha = lasso_cv.alpha_)
-lasso.fit(train_x, train_y)
+lasso.fit(scaled_tr_x, train_y)
 coef_series = pd.Series(lasso.coef_, index=train_x.columns)
 zero_feature_indices = np.isclose(coef_series.values, 0.0)
 zero_features = coef_series.index[zero_feature_indices].tolist()
 print(zero_features)
-train_pred_y = lasso.predict(train_x)
-test_pred_y = lasso.predict(test_x)
+train_pred_y = lasso.predict(scaled_tr_x)
+test_pred_y = lasso.predict(scaled_test_x)
 print("Train MSE:", mse(train_y, train_pred_y))
 print("Test MSE:", mse(test_y, test_pred_y))
 
