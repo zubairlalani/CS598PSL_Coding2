@@ -358,10 +358,11 @@ The code below shows our approach:
 ```
 print("Ridge: ")
 scaler = StandardScaler().fit(train_x)
+alphas = np.logspace(-4, 4, 100)  
 scaled_tr_x = scaler.transform(train_x)
 scaled_test_x = scaler.transform(test_x)
 cv = KFold(n_splits = 5, shuffle = True, random_state=42) # 5-fold cross validation
-ridge = RidgeCV(cv = cv, scoring='neg_mean_squared_error')
+ridge = RidgeCV(alphas = alphas, cv = cv, scoring='neg_mean_squared_error')
 ridge.fit(scaled_tr_x, train_y)
 
 print("Optimal lambda (alpha):", ridge.alpha_)
@@ -375,9 +376,9 @@ See below for the results:
 
 ```
 Ridge: 
-Optimal lambda (alpha): 10.0
-Train MSE: 249442041312.5501
-Test  MSE: 635378737295.408
+Optimal lambda (alpha): 25.950242113997373
+Train MSE: 253016991144.07742
+Test  MSE: 638314094075.6615
 ```
 
 ### 2d
@@ -390,7 +391,7 @@ print("Lasso: ")
 scaler = StandardScaler().fit(train_x)
 scaled_tr_x = scaler.transform(train_x)
 scaled_test_x = scaler.transform(test_x)
-lasso_cv = LassoCV(cv=cv)
+lasso_cv = LassoCV(alphas = alphas, cv=cv)
 lasso_cv.fit(scaled_tr_x, train_y)
 lasso = Lasso(alpha = lasso_cv.alpha_)
 lasso.fit(scaled_tr_x, train_y)
@@ -414,3 +415,9 @@ Test MSE: 650215622813.5703
 ```
 
 ### 2e
+Based on the results, we can see that the mean squared error for both train and test is lowest when using ridge regression. This is because 
+most of the features are important when determining the salary a player gets in relation to their statistics. Ridge regression, as opposed to lasso regression, 
+assumes that most features are important when it goes into factors that influence a player's salary (minutes, goals, assists, games_started, height, etc.). As
+a result, it makes sense that ridge regression has a lower mean squared error on average as opposed to a feature-selection based regression such as 
+lasso. Furthermore, since this is the case, it makes sense that measures such as AIC and BIC (which penalize complexity of features) also yield high
+mean squared errors.
