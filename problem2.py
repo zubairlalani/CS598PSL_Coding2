@@ -69,8 +69,9 @@ for k, feats in best_subsets.items():
     })
 
 results = pd.DataFrame(rows).sort_values("k")
-print(results[["k","train_mse","test_mse", "features"]])
-
+pd.set_option("display.max_colwidth", None)
+print(results[["k","train_mse","test_mse"]])
+print(results[["k", "features"]])
 # b)
 best_AIC = results.loc[results["AIC"].idxmin()]
 best_BIC = results.loc[results["BIC"].idxmin()]
